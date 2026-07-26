@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TBAS Multi-Tasking Trainer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% 35%, #45454a 0%, #333336 70%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #2b2b2b;
+  }
+
+  #tooSmall {
+    display: none;
+    color: #e8e6e1; font-size: 18px; text-align: center; padding: 40px; line-height: 1.5;
+  }
+
+  /* ---------- Play area ---------- */
+  #app {
+    width: 1100px; height: 700px; position: relative;
+    background: #4a4a4a; padding: 6px; border-radius: 6px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  @media (max-width: 899px) {
+    #app { display: none; }
+    #tooSmall { display: block; }
+  }
+
+  #grid {
+    width: 100%; height: 100%;
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+    gap: 6px;
+  }
+  .quad {
+    background: linear-gradient(180deg, #d6cec1 0%, #c9c1b3 100%);
+    position: relative; overflow: hidden;
+    user-select: none; -webkit-user-select: none;
+  }
+  .quad.dimmed { opacity: .35; pointer-events: none; }
+
+  #sessionTimer {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    background: #2b2b2b; color: #f2efe9;
+    padding: 5px 18px 7px; border-radius: 0 0 7px 7px;
+    font-size: 20px; font-weight: 600; letter-spacing: .06em;
+    font-variant-numeric: tabular-nums; z-index: 5;
+    box-shadow: 0 3px 8px rgba(0,0,0,.3);
+  }
+
+  /* ---------- Module score boxes (outer corners) ---------- */
+  .score-box {
+    position: absolute; z-index: 3;
+    background: #d9d2c6; border: 1px solid #b3aa9b;
+    padding: 5px 12px 6px; min-width: 92px; text-align: left;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+  .score-box .cap { font-size: 12px; color: #555; }
+  .score-box .val { font-size: 22px; font-weight: 700; color: #171717; line-height: 1.1; }
+  #qMemory .score-box { top: 10px; left: 10px; }
+  #qMath   .score-box { top: 10px; right: 10px; }
+  #qGauge  .score-box { bottom: 10px; left: 10px; }
+  #qRadio  .score-box { bottom: 10px; right: 10px; }
+
+  /* ---------- Shared controls ---------- */
+  .btn {
+    background: #e8e6e1; border: 1px solid #9a9a9a; border-radius: 4px;
+    color: #2b2b2b; font: inherit; padding: 7px 16px; cursor: pointer;
+    box-shadow: 0 2px 0 rgba(0,0,0,.18);
+  }
+  .btn:hover { background: #f0eee9; }
+  .btn:active { background: #d0cec9; box-shadow: inset 0 2px 3px rgba(0,0,0,.22); }
+  :focus-visible { outline: 2px solid #2f6fd6; outline-offset: 2px; }
+
+  .inset {
+    background: #f4f2ee; border: 1px solid #a89f92;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,.18);
+    border-radius: 2px;
+  }
+  .hidden { display: none !important; }
+
+  /* ---------- Module A: Character Memory ---------- */
+  .mem-stack {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .mem-bar {
+    width: 70%; height: 46px;
+    font-weight: 700; font-size: 26px; letter-spacing: .35em; text-indent: .35em;
+    text-align: center; line-height: 44px; color: #1c1c1c;
+  }
+  .mem-probe {
+    width: 90px; height: 28px; margin: 18px 0 26px; transform: translateX(28px);
+    font-weight: 700; font-size: 18px; text-align: center; line-height: 26px;
+  }
+  .mem-row {
+    display: flex; gap: 120px; padding: 10px 26px; border-radius: 70px;
+    transition: box-shadow .05s;
+  }
+  .mem-row.flash-good { box-shadow: 0 0 0 4px #3f9d42; }
+  .mem-row.flash-bad  { box-shadow: 0 0 0 4px #c0392b; }
+  .round-btn {
+    width: 90px; height: 90px; border-radius: 50%;
+    border: 4px solid #3c3c3c;
+    background: radial-gradient(circle at 50% 42%, #8a8a8a 0%, #6b6b6b 48%, #4f4f4f 100%);
+    color: #e0dedb; font-size: 44px; line-height: 1; cursor: pointer;
+    box-shadow: 0 3px 7px rgba(0,0,0,.35);
+  }
+  .round-btn:hover  { filter: brightness(1.1); }
+  .round-btn:active { box-shadow: inset 0 4px 9px rgba(0,0,0,.55); }
+
+  /* ---------- Module B: Math ---------- */
+  .math-stack {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .math-problem { display: flex; align-items: center; gap: 20px; min-height: 58px; }
+  .math-op { font-size: 40px; font-weight: 800; color: #111; }
+  .math-operands {
+    text-align: right; font-size: 22px; font-weight: 700; line-height: 1.2;
+    font-variant-numeric: tabular-nums; color: #1c1c1c;
+  }
+  .math-rule { width: 55%; border-bottom: 2px dashed #2b2b2b; margin: 8px 0 16px; }
+  .math-answer {
+    display: flex; gap: 16px; padding: 8px 20px; margin-bottom: 16px;
+    transition: box-shadow .05s;
+  }
+  .math-answer.flash-good { box-shadow: 0 0 0 3px #3f9d42, inset 0 2px 4px rgba(0,0,0,.18); }
+  .math-answer.flash-bad  { box-shadow: 0 0 0 3px #c0392b, inset 0 2px 4px rgba(0,0,0,.18); }
+  .slot {
+    width: 28px; text-align: center; font-size: 24px; font-weight: 700;
+    border: 2px solid transparent; border-radius: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .slot.active { border-color: #2f6fd6; background: #eaf1fb; }
+  .digit-strip { display: flex; gap: 2px; margin-bottom: 14px; }
+  .dbtn {
+    width: 34px; height: 34px; background: #e8e6e1; border: 1px solid #9a9a9a;
+    border-radius: 3px; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 0 rgba(0,0,0,.15); color: #2b2b2b;
+  }
+  .dbtn:hover { background: #f0eee9; }
+  .dbtn:active { background: #d0cec9; }
+  .dbtn.armed { background: #2f6fd6; color: #fff; border-color: #245bb5; }
+  .math-actions { display: flex; gap: 16px; }
+  .math-actions .btn { min-width: 160px; }
+
+  /* ---------- Module C: Gauge ---------- */
+  .gauge-wrap {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #gaugeSvg { filter: drop-shadow(0 4px 6px rgba(0,0,0,.28)); }
+
+  /* ---------- Module D: Radio ---------- */
+  .radio-field { position: absolute; inset: 0; }
+  .tile {
+    position: absolute; width: 85px; height: 85px;
+    font: inherit; font-size: 34px; font-weight: 700; color: #2b2b2b;
+    border: 1px solid #bdb6a8; border-radius: 5px; cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0,0,0,.22);
+    transition: transform .08s, box-shadow .08s, filter .08s;
+  }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 5px 11px rgba(0,0,0,.28); }
+  #tile1 { left: 46%; top: 9%;  background: #f6d9b8; }
+  #tile4 { left: 14%; top: 36%; background: #cfe0e4; }
+  #tile2 { left: 68%; top: 34%; background: #e4f0f2; }
+  #tile3 { left: 40%; top: 60%; background: #f08a4b; }
+  .tile.selected { outline: 3px solid #2b2b2b; outline-offset: 1px; }
+  .tile.flash-good { box-shadow: 0 0 0 4px #3f9d42; }
+  .tile.flash-bad  { box-shadow: 0 0 0 4px #c0392b; }
+  .tile.flash-mute { filter: brightness(.9); }
+  .tts-badge {
+    position: absolute; top: 8px; right: 8px; z-index: 3;
+    font-size: 12px; background: #f3e2b8; border: 1px solid #c9ae62;
+    padding: 2px 9px; border-radius: 3px; color: #5a4a1c;
+  }
+  .radio-readout {
+    position: absolute; left: 10px; right: 130px; bottom: 10px; z-index: 3;
+    background: #2b2b2b; color: #cfe8cf; font-size: 13px;
+    font-family: Consolas, "Courier New", monospace;
+    padding: 6px 9px; border-radius: 3px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---------- Overlays ---------- */
+  .overlay {
+    position: absolute; inset: 0; z-index: 20;
+    background: linear-gradient(180deg, #d6cec1 0%, #c9c1b3 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 20px; text-align: center;
+  }
+
+  /* Menu */
+  #menuOverlay h1 { font-size: 30px; letter-spacing: .04em; color: #1c1c1c; }
+  .subtitle { font-size: 14px; color: #5a564d; margin-top: -12px; }
+  .menu-section { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .menu-label { font-size: 13px; color: #5a564d; text-transform: uppercase; letter-spacing: .12em; }
+  .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 720px; }
+  .seg .btn.sel { background: #2b2b2b; color: #f2efe9; border-color: #1a1a1a; }
+  .sound-note { font-size: 14px; color: #4c483f; }
+  .start-btn { font-size: 20px; font-weight: 600; padding: 12px 64px; }
+  .kbd-hint { font-size: 12px; color: #6b6659; max-width: 640px; line-height: 1.55; }
+
+  /* Call-sign reveal */
+  #revealOverlay { background: linear-gradient(180deg, #3a3a3d, #2c2c2f); color: #f2efe9; }
+  .reveal-cap { font-size: 20px; color: #c9c4ba; }
+  .reveal-cs { font-size: 48px; font-weight: 800; letter-spacing: .04em; }
+  .ring-wrap { position: relative; width: 90px; height: 90px; margin-top: 8px; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  #ringNum {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 30px; font-weight: 700; color: #f2efe9;
+  }
+
+  /* Results */
+  #resultsOverlay h2 { font-size: 26px; color: #1c1c1c; }
+  #resultsOverlay h3 { font-size: 15px; color: #4c483f; margin-top: 6px; }
+  table.res {
+    border-collapse: collapse; background: #d9d2c6; box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+  table.res th, table.res td {
+    border: 1px solid #b3aa9b; padding: 6px 16px; font-size: 14px; text-align: left;
+  }
+  table.res th { background: #cfc7ba; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #4c483f; }
+  table.res td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .res-total { font-size: 22px; font-weight: 700; color: #171717; }
+  .res-buttons { display: flex; gap: 16px; }
+  .res-buttons .btn { min-width: 180px; font-size: 16px; padding: 10px 18px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile, .mem-row, .math-answer { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="tooSmall">
+  🖥️ TBAS Multi-Tasking Trainer<br><br>
+  Please use a larger screen (at least 900&nbsp;px wide) to run the simulator.
+</div>
+
+<div id="app">
+  <div id="grid">
+
+    <!-- Module A: Character Memory (top-left) -->
+    <div class="quad" id="qMemory">
+      <div class="score-box"><div class="cap">Module Score</div><div class="val" id="scoreMem">0</div></div>
+      <div class="mem-stack">
+        <div class="inset mem-bar" id="memBar"></div>
+        <div class="inset mem-probe" id="memProbe"></div>
+        <div class="mem-row" id="memRow">
+          <button class="round-btn" id="memYes" aria-label="Letter was in the set">✓</button>
+          <button class="round-btn" id="memNo" aria-label="Letter was not in the set">✗</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module B: Math (top-right) -->
+    <div class="quad" id="qMath">
+      <div class="score-box"><div class="cap">Module Score</div><div class="val" id="scoreMath">0</div></div>
+      <div class="math-stack">
+        <div class="math-problem">
+          <div class="math-op" id="mathOp"></div>
+          <div class="math-operands"><div id="mathA"></div><div id="mathB"></div></div>
+        </div>
+        <div class="math-rule"></div>
+        <div class="inset math-answer" id="mathAnswer"></div>
+        <div class="digit-strip" id="digitStrip"></div>
+        <div class="math-actions">
+          <button class="btn" id="btnGT">Greater Than —</button>
+          <button class="btn" id="btnSubmit">Submit</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module C: Gauge (bottom-left) -->
+    <div class="quad" id="qGauge">
+      <div class="score-box"><div class="cap">Module Score</div><div class="val" id="scoreGauge">0</div></div>
+      <div class="gauge-wrap" id="gaugeWrap">
+        <svg id="gaugeSvg" viewBox="0 0 340 200" width="340" height="200" aria-label="Drift gauge"></svg>
+      </div>
+    </div>
+
+    <!-- Module D: Radio (bottom-right) -->
+    <div class="quad" id="qRadio">
+      <div class="score-box"><div class="cap">Module Score</div><div class="val" id="scoreRadio">0</div></div>
+      <div class="radio-field">
+        <button class="tile" id="tile1">1</button>
+        <button class="tile" id="tile4">4</button>
+        <button class="tile" id="tile2">2</button>
+        <button class="tile" id="tile3">3</button>
+      </div>
+      <div class="tts-badge hidden" id="ttsBadge">⚠ TTS unavailable — text mode</div>
+      <div class="radio-readout hidden" id="radioReadout"></div>
+    </div>
+
+  </div>
+
+  <div id="sessionTimer">5:00</div>
+
+  <!-- MENU -->
+  <div class="overlay" id="menuOverlay">
+    <h1>TBAS Multi-Tasking Trainer</h1>
+    <p class="subtitle">Test of Basic Aviation Skills — Multi-Tasking subtest simulator</p>
+    <div class="menu-section">
+      <div class="menu-label">Mode</div>
+      <div class="seg" id="modeSeg">
+        <button class="btn sel" data-mode="full">Full Test (all 4 tasks)</button>
+        <button class="btn" data-mode="memory">Memory only</button>
+        <button class="btn" data-mode="math">Math only</button>
+        <button class="btn" data-mode="gauge">Gauge only</button>
+        <button class="btn" data-mode="radio">Radio only</button>
+      </div>
+    </div>
+    <div class="menu-section">
+      <div class="menu-label">Session length</div>
+      <div class="seg" id="durSeg">
+        <button class="btn" data-min="3">3 min</button>
+        <button class="btn sel" data-min="5">5 min</button>
+        <button class="btn" data-min="8">8 min</button>
+      </div>
+    </div>
+    <p class="sound-note">🔊 Radio task requires sound. Click Start to enable audio.</p>
+    <button class="btn start-btn" id="btnStart">Start</button>
+    <p class="kbd-hint">
+      Keyboard: <b>Y</b>/<b>N</b> = memory ✓/✗ &nbsp;·&nbsp; <b>0–9</b> = math digits, <b>Enter</b> = Submit,
+      <b>G</b> = Greater&nbsp;Than &nbsp;·&nbsp; <b>Space</b> = gauge reset &nbsp;·&nbsp; <b>Shift+1–4</b> = radio tiles
+    </p>
+  </div>
+
+  <!-- CALLSIGN REVEAL -->
+  <div class="overlay hidden" id="revealOverlay">
+    <div class="reveal-cap">Your call sign is</div>
+    <div class="reveal-cs" id="revealCs"></div>
+    <div class="ring-wrap">
+      <svg width="90" height="90" aria-hidden="true">
+        <circle cx="45" cy="45" r="38" fill="none" stroke="#55555a" stroke-width="6"></circle>
+        <circle id="ringFg" cx="45" cy="45" r="38" fill="none" stroke="#f2efe9" stroke-width="6"
+                stroke-linecap="round" stroke-dasharray="238.76" stroke-dashoffset="0"></circle>
+      </svg>
+      <div id="ringNum">5</div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="overlay hidden" id="resultsOverlay">
+    <h2>Session Results</h2>
+    <table class="res">
+      <thead><tr><th>Module</th><th>Score</th><th>Accuracy</th><th>Detail</th></tr></thead>
+      <tbody id="resBody"></tbody>
+    </table>
+    <div class="res-total">Total Score: <span id="resTotal">0</span></div>
+    <div class="res-buttons">
+      <button class="btn" id="btnRetry">Retry (same settings)</button>
+      <button class="btn" id="btnMenu">Main Menu</button>
+    </div>
+    <h3>Attempt History</h3>
+    <table class="res">
+      <thead><tr><th>#</th><th>Mode</th><th>Total</th></tr></thead>
+      <tbody id="histBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   CONFIG — all tunable numbers live here (spec §8)
+   ===================================================================== */
+const CONFIG = {
+  session: { durationOptionsMin: [3, 5, 8], defaultMin: 5 },
+  memory:  { setLength: 8, memorizeMs: 8000, probesPerRound: 10,
+             probeTimeoutMs: 10000, interProbeMs: 900, pointsCorrect: 10 },
+  math:    { problemTimeoutMs: 20000, pointsCorrect: 15,
+             addProbability: 0.6, thresholdSpread: 400 },
+  gauge:   { idleDelayMsMin: 1500, idleDelayMsMax: 6000,
+             minSpeedDegPerSec: 1.5, maxSpeedDegPerSec: 5,
+             pointsYellow: 15, pointsGreen: 5, redPenalty: -10 },
+  radio:   { msgIntervalMsMin: 9000, msgIntervalMsMax: 16000,
+             distractorProbability: 0.7, responseWindowMs: 6000,
+             pointsCorrect: 20, nearMissDistractors: false },
+};
+
+/* =====================================================================
+   Utilities
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const randInt   = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const randFloat = (a, b) => a + Math.random() * (b - a);
+const choice    = arr => arr[randInt(0, arr.length - 1)];
+const clamp     = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+const NATO = ['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India',
+  'Juliett','Kilo','Lima','Mike','November','Oscar','Papa','Quebec','Romeo','Sierra',
+  'Tango','Uniform','Victor','Whiskey','X-ray','Yankee','Zulu'];
+const DIGIT_WORDS = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Niner'];
+
+/* --------- Central cancellable timer registry (spec §6) --------- */
+const timers = new Set();
+function after(ms, fn) {
+  const id = setTimeout(() => { timers.delete(id); fn(); }, ms);
+  timers.add(id);
+  return id;
+}
+function cancelTimer(id) { if (id != null) { clearTimeout(id); timers.delete(id); } }
+function clearAllTimers() { timers.forEach(id => clearTimeout(id)); timers.clear(); }
+
+/* --------- Flash helper (150 ms colored glow) --------- */
+function flash(el, kind, ms = 150) {
+  el.classList.remove('flash-good', 'flash-bad', 'flash-mute');
+  void el.offsetWidth; // restart transition
+  el.classList.add('flash-' + kind);
+  after(ms, () => el.classList.remove('flash-' + kind));
+}
+
+/* =====================================================================
+   Speech engine — Web Speech API with queue + text-mode fallback (§5.3/§5.5)
+   ===================================================================== */
+let ttsMode = (typeof window !== 'undefined' && 'speechSynthesis' in window &&
+               'SpeechSynthesisUtterance' in window) ? 'tts' : 'text';
+let cachedVoice = null;
+const speechQueue = [];
+let speaking = false;
+
+function pickVoice() {
+  if (cachedVoice) return cachedVoice;
+  try {
+    const vs = speechSynthesis.getVoices();
+    if (!vs || !vs.length) return null;
+    cachedVoice = vs.find(v => /^en(-|_)US/i.test(v.lang)) ||
+                  vs.find(v => /^en/i.test(v.lang)) || vs[0];
+  } catch (e) { cachedVoice = null; }
+  return cachedVoice;
+}
+if (ttsMode === 'tts' && typeof speechSynthesis.onvoiceschanged !== 'undefined') {
+  speechSynthesis.onvoiceschanged = () => { cachedVoice = null; pickVoice(); };
+}
+
+function switchToTextMode() {
+  ttsMode = 'text';
+  $('ttsBadge').classList.remove('hidden');
+}
+
+function say(text, onend) {
+  if (ttsMode !== 'tts') { if (onend) onend(); return; }
+  speechQueue.push({ text, onend });
+  pumpSpeech();
+}
+function pumpSpeech() {
+  if (speaking || !speechQueue.length || ttsMode !== 'tts') return;
+  const { text, onend } = speechQueue.shift();
+  let u;
+  try { u = new SpeechSynthesisUtterance(text); }
+  catch (e) { switchToTextMode(); if (onend) onend(); return; }
+  u.rate = 0.95;
+  u.pitch = 0.9;
+  const v = pickVoice();
+  if (v) u.voice = v;
+  speaking = true;
+  u.onend = () => { speaking = false; if (onend) onend(); pumpSpeech(); };
+  u.onerror = () => {
+    speaking = false;
+    switchToTextMode();
+    if (appState === 'RUNNING' && radio.active) showReadout(text);
+    if (onend) onend();
+  };
+  speechSynthesis.speak(u);
+}
+function cancelSpeech() {
+  speechQueue.length = 0;
+  speaking = false;
+  if ('speechSynthesis' in window) { try { speechSynthesis.cancel(); } catch (e) {} }
+}
+
+/* =====================================================================
+   App state machine:  MENU → CALLSIGN_REVEAL → RUNNING → RESULTS (§1.2)
+   ===================================================================== */
+let appState = 'MENU';           // MENU | REVEAL | RUNNING | ENDED | RESULTS
+const settings = { mode: 'full', minutes: CONFIG.session.defaultMin };
+const MODES = {
+  full:   { mem: true,  math: true,  gauge: true,  radio: true,  label: 'Full Test'   },
+  memory: { mem: true,  math: false, gauge: false, radio: false, label: 'Memory only' },
+  math:   { mem: false, math: true,  gauge: false, radio: false, label: 'Math only'   },
+  gauge:  { mem: false, math: false, gauge: true,  radio: false, label: 'Gauge only'  },
+  radio:  { mem: false, math: false, gauge: false, radio: true,  label: 'Radio only'  },
+};
+const history = [];              // in-memory attempt history
+let sessionEndTime = 0;
+let rafId = null;
+let lastTick = 0;
+let revealDeadline = 0;
+
+/* =====================================================================
+   Module A — Character Memory (§2)
+   ===================================================================== */
+const mem = {
+  active: false, score: 0, shown: 0, correct: 0,
+  phase: 'idle',                 // idle | memorize | probe | wait
+  set: [], probeLetter: '', probeInSet: false, prevProbe: '',
+  probeCount: 0, timeoutId: null,
+};
+
+function pickUniqueLetters(n) {
+  const pool = ALPHA.split('');
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(pool.splice(randInt(0, pool.length - 1), 1)[0]);
+  return out;
+}
+function letterNotIn(set) {
+  let l;
+  do { l = ALPHA[randInt(0, 25)]; } while (set.includes(l));
+  return l;
+}
+
+function memNewRound() {
+  if (appState !== 'RUNNING' || !mem.active) return;
+  mem.set = pickUniqueLetters(CONFIG.memory.setLength);
+  mem.phase = 'memorize';
+  mem.probeCount = 0;
+  $('memBar').textContent = mem.set.join('');
+  $('memProbe').textContent = '';
+  after(CONFIG.memory.memorizeMs, memStartProbes);
+}
+function memStartProbes() {
+  if (appState !== 'RUNNING' || !mem.active) return;
+  $('memBar').textContent = '';          // bar stays visible but blank
+  memNextProbe();
+}
+function memNextProbe() {
+  if (appState !== 'RUNNING' || !mem.active) return;
+  if (mem.probeCount >= CONFIG.memory.probesPerRound) { memNewRound(); return; }
+  const inSet = Math.random() < 0.5;
+  let letter;
+  do {
+    letter = inSet ? choice(mem.set) : letterNotIn(mem.set);
+  } while (letter === mem.prevProbe);
+  mem.probeLetter = letter;
+  mem.probeInSet = inSet;
+  mem.phase = 'probe';
+  $('memProbe').textContent = letter;
+  mem.timeoutId = after(CONFIG.memory.probeTimeoutMs, memProbeTimeout);
+}
+function memResolveProbe(correct) {
+  mem.shown++;
+  mem.probeCount++;
+  mem.prevProbe = mem.probeLetter;
+  if (correct) {
+    mem.correct++;
+    mem.score += CONFIG.memory.pointsCorrect;
+    flash($('memRow'), 'good');
+  } else {
+    flash($('memRow'), 'bad');
+  }
+  $('memProbe').textContent = '';
+  mem.phase = 'wait';
+  updateScores();
+  after(CONFIG.memory.interProbeMs, memNextProbe);
+}
+function memAnswer(yes) {
+  if (appState !== 'RUNNING' || !mem.active || mem.phase !== 'probe') return; // inert otherwise
+  cancelTimer(mem.timeoutId);
+  memResolveProbe(yes === mem.probeInSet);
+}
+function memProbeTimeout() {
+  if (appState !== 'RUNNING' || !mem.active || mem.phase !== 'probe') return;
+  memResolveProbe(false);                // timeout = miss, 0 points
+}
+
+/* =====================================================================
+   Module B — Math (§3)
+   ===================================================================== */
+const math3 = {
+  active: false, score: 0, attempts: 0, correct: 0,
+  a: 0, b: 0, op: '+', answer: 0, T: 0,
+  slots: [0, 0, 0, 0], cursor: 3, timeoutId: null,   // entry starts at the ones place
+};
+
+function buildDigitStrip() {
+  const strip = $('digitStrip');
+  for (let d = 0; d <= 9; d++) {
+    const b = document.createElement('button');
+    b.className = 'dbtn';
+    b.textContent = d;
+    b.dataset.d = d;
+    b.addEventListener('click', () => mathDigit(d));
+    strip.appendChild(b);
+  }
+}
+function armDigitButton(d) {
+  document.querySelectorAll('.dbtn.armed').forEach(b => b.classList.remove('armed'));
+  const btn = document.querySelector('.dbtn[data-d="' + d + '"]');
+  if (btn) btn.classList.add('armed');
+}
+function unarmDigits() {
+  document.querySelectorAll('.dbtn.armed').forEach(b => b.classList.remove('armed'));
+}
+function renderMathAnswer() {
+  const el = $('mathAnswer');
+  el.innerHTML = '';
+  math3.slots.forEach((d, i) => {
+    const s = document.createElement('span');
+    s.className = 'slot' + (i === math3.cursor ? ' active' : '');
+    s.textContent = d;
+    el.appendChild(s);
+  });
+}
+function mathNewProblem() {
+  if (appState !== 'RUNNING' || !math3.active) return;
+  cancelTimer(math3.timeoutId);
+  if (Math.random() < CONFIG.math.addProbability) {
+    math3.op = '+';
+    math3.a = randInt(100, 999);
+    math3.b = randInt(100, 999);
+    math3.answer = math3.a + math3.b;
+  } else {
+    math3.op = '−';
+    math3.a = randInt(200, 999);
+    math3.b = randInt(100, math3.a - 1);   // result always positive
+    math3.answer = math3.a - math3.b;
+  }
+  const spread = CONFIG.math.thresholdSpread;
+  let t = randInt(math3.answer - spread, math3.answer + spread);
+  t = clamp(t, 100, 1900);
+  math3.T = Math.round(t / 50) * 50;       // round-ish: nearest 50
+  math3.slots = [0, 0, 0, 0];
+  math3.cursor = 3;                        // start entry at the ones place
+  $('mathOp').textContent = math3.op;
+  $('mathA').textContent = math3.a;
+  $('mathB').textContent = math3.b;
+  $('btnGT').textContent = 'Greater Than ' + math3.T;
+  renderMathAnswer();
+  math3.timeoutId = after(CONFIG.math.problemTimeoutMs, mathTimeout);
+}
+function mathDigit(d) {
+  if (appState !== 'RUNNING' || !math3.active) return;
+  math3.slots[math3.cursor] = d;
+  // ones → tens → hundreds → thousands, then wrap back to the ones place
+  math3.cursor = math3.cursor === 0 ? 3 : math3.cursor - 1;
+  renderMathAnswer();
+  armDigitButton(d);
+}
+function mathResolve(isCorrect) {
+  cancelTimer(math3.timeoutId);
+  math3.attempts++;
+  if (isCorrect) {
+    math3.correct++;
+    math3.score += CONFIG.math.pointsCorrect;
+    flash($('mathAnswer'), 'good');
+  } else {
+    flash($('mathAnswer'), 'bad');
+  }
+  updateScores();
+  mathNewProblem();
+}
+function mathSubmit() {
+  if (appState !== 'RUNNING' || !math3.active) return;
+  const value = parseInt(math3.slots.join(''), 10);
+  mathResolve(value === math3.answer);
+}
+function mathGreaterThan() {
+  if (appState !== 'RUNNING' || !math3.active) return;
+  mathResolve(math3.answer > math3.T);
+}
+function mathTimeout() {
+  if (appState !== 'RUNNING' || !math3.active) return;
+  math3.attempts++;
+  flash($('mathAnswer'), 'bad');
+  updateScores();
+  mathNewProblem();
+}
+
+/* =====================================================================
+   Module C — Gauge (§4)
+   ===================================================================== */
+const gauge = {
+  active: false, score: 0,
+  cycles: 0, yellow: 0, green: 0, redEvents: 0,
+  state: 'idle',                 // idle | drift | snap
+  angle: 90, idleUntil: 0, dir: 1, speed: 0,
+  snapFrom: 90, snapStart: 0,
+};
+const GAUGE_CX = 170, GAUGE_CY = 178, GAUGE_R = 150;
+let needleG = null, gaugeRim = null;
+
+function polar(cx, cy, r, deg) {
+  const rad = deg * Math.PI / 180;
+  return [cx - r * Math.cos(rad), cy - r * Math.sin(rad)];
+}
+function wedgePath(cx, cy, r, a1, a2) {
+  const [x1, y1] = polar(cx, cy, r, a1);
+  const [x2, y2] = polar(cx, cy, r, a2);
+  return 'M ' + cx + ' ' + cy +
+         ' L ' + x1.toFixed(2) + ' ' + y1.toFixed(2) +
+         ' A ' + r + ' ' + r + ' 0 0 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + ' Z';
+}
+function buildGauge() {
+  const svg = $('gaugeSvg');
+  const cx = GAUGE_CX, cy = GAUGE_CY, r = GAUGE_R;
+  // 5 wedge bands, angles measured from the left horizontal (0° far left → 180° far right)
+  const BANDS = [
+    [0, 35, '#d63a2f'], [35, 65, '#e8c227'], [65, 115, '#3f9d42'],
+    [115, 145, '#e8c227'], [145, 180, '#d63a2f'],
+  ];
+  let s = '';
+  for (const [a1, a2, color] of BANDS) {
+    s += '<path d="' + wedgePath(cx, cy, r, a1, a2) + '" fill="' + color +
+         '" stroke="#b9b2a4" stroke-width="1"/>';
+  }
+  const [rx1, ry1] = polar(cx, cy, r + 4, 0);
+  const [rx2, ry2] = polar(cx, cy, r + 4, 180);
+  s += '<path id="gaugeRim" d="M ' + rx1.toFixed(2) + ' ' + ry1.toFixed(2) +
+       ' A ' + (r + 4) + ' ' + (r + 4) + ' 0 0 1 ' + rx2.toFixed(2) + ' ' + ry2.toFixed(2) +
+       '" fill="none" stroke="#2e2e2e" stroke-width="8" stroke-linecap="round"/>';
+  s += '<line x1="' + (cx - r - 4) + '" y1="' + cy + '" x2="' + (cx + r + 4) + '" y2="' + cy +
+       '" stroke="#2e2e2e" stroke-width="8" stroke-linecap="round"/>';
+  s += '<g id="needleG" transform="rotate(0 ' + cx + ' ' + cy + ')">' +
+       '<polygon points="' + (cx - 6) + ',' + cy + ' ' + (cx + 6) + ',' + cy + ' ' +
+       cx + ',' + (cy - r + 18) + '" fill="#111"/></g>';
+  s += '<circle cx="' + cx + '" cy="' + cy + '" r="14" fill="#111"/>';
+  svg.innerHTML = s;
+  needleG = document.getElementById('needleG');
+  gaugeRim = document.getElementById('gaugeRim');
+}
+function renderNeedle() {
+  if (needleG) {
+    needleG.setAttribute('transform',
+      'rotate(' + (gauge.angle - 90).toFixed(2) + ' ' + GAUGE_CX + ' ' + GAUGE_CY + ')');
+  }
+}
+function gaugeEnterIdle(now) {
+  gauge.state = 'idle';
+  gauge.angle = 90;
+  gauge.idleUntil = now + randFloat(CONFIG.gauge.idleDelayMsMin, CONFIG.gauge.idleDelayMsMax);
+}
+function gaugeStartSnap(now) {
+  gauge.state = 'snap';
+  gauge.snapFrom = gauge.angle;
+  gauge.snapStart = now;
+}
+function gaugeFlashRim() {
+  if (!gaugeRim) return;
+  gaugeRim.setAttribute('stroke', '#d63a2f');
+  after(300, () => { if (gaugeRim) gaugeRim.setAttribute('stroke', '#2e2e2e'); });
+}
+function gaugeTick(now, dt) {
+  if (!gauge.active) return;
+  if (gauge.state === 'idle') {
+    if (now >= gauge.idleUntil) {
+      gauge.state = 'drift';
+      gauge.dir = Math.random() < 0.5 ? -1 : 1;
+      gauge.speed = randFloat(CONFIG.gauge.minSpeedDegPerSec, CONFIG.gauge.maxSpeedDegPerSec);
+      gauge.cycles++;
+    }
+  } else if (gauge.state === 'drift') {
+    gauge.angle += gauge.dir * gauge.speed * dt / 1000;
+    // needle reaches middle of a red band without a click → penalty + auto-reset
+    if ((gauge.dir < 0 && gauge.angle <= 17.5) || (gauge.dir > 0 && gauge.angle >= 162.5)) {
+      gauge.angle = gauge.dir < 0 ? 17.5 : 162.5;
+      gauge.redEvents++;
+      gauge.score += CONFIG.gauge.redPenalty;   // the one negative-scoring rule
+      updateScores();
+      gaugeFlashRim();
+      gaugeStartSnap(now);
+    }
+  } else if (gauge.state === 'snap') {
+    const t = Math.min(1, (now - gauge.snapStart) / 200);
+    gauge.angle = gauge.snapFrom + (90 - gauge.snapFrom) * t;
+    if (t >= 1) gaugeEnterIdle(now);
+  }
+  renderNeedle();
+}
+function gaugeClick() {
+  if (appState !== 'RUNNING' || !gauge.active) return;
+  if (gauge.state !== 'drift') return;      // clicks during IDLE / snap ignored — no spam-clicking
+  const a = gauge.angle;
+  if ((a >= 35 && a < 65) || (a > 115 && a <= 145)) {
+    gauge.yellow++;
+    gauge.score += CONFIG.gauge.pointsYellow; // best outcome
+  } else if (a >= 65 && a <= 115) {
+    gauge.green++;
+    gauge.score += CONFIG.gauge.pointsGreen;  // reset too early
+  }
+  // red band click: 0 points
+  updateScores();
+  gaugeStartSnap(performance.now());
+}
+
+/* =====================================================================
+   Module D — Radio (§5)
+   ===================================================================== */
+const radio = {
+  active: false, score: 0,
+  calls: 0, correct: 0, wrong: 0, missed: 0, falseResp: 0,
+  callsign: null, selected: 0,             // 0 = none selected
+  windowOpen: false, windowChannel: 0, windowTimer: null,
+  readoutTimer: null,
+};
+
+function genCallsign() {
+  return { word: choice(NATO), d1: randInt(0, 9), d2: randInt(0, 9) };
+}
+function csText(cs) {
+  return cs.word + ' ' + DIGIT_WORDS[cs.d1] + ' ' + DIGIT_WORDS[cs.d2];
+}
+function genDistractorCallsign() {
+  // must differ from the player's in the phonetic word (§5.2)
+  let w;
+  do { w = choice(NATO); } while (w === radio.callsign.word);
+  return w + ' ' + DIGIT_WORDS[randInt(0, 9)] + ' ' + DIGIT_WORDS[randInt(0, 9)];
+}
+function showReadout(text) {
+  const el = $('radioReadout');
+  el.textContent = '📻 ' + text;
+  el.classList.remove('hidden');
+  cancelTimer(radio.readoutTimer);
+  radio.readoutTimer = after(4000, () => el.classList.add('hidden'));
+}
+function deliverTransmission(text) {
+  if (ttsMode === 'tts') say(text);
+  else showReadout(text);
+}
+function scheduleNextTransmission() {
+  after(randInt(CONFIG.radio.msgIntervalMsMin, CONFIG.radio.msgIntervalMsMax), radioTransmit);
+}
+function radioTransmit() {
+  if (appState !== 'RUNNING' || !radio.active) return;
+  let text;
+  if (Math.random() < CONFIG.radio.distractorProbability) {
+    // distractor — requires no action
+    const ch = randInt(1, 4);
+    text = genDistractorCallsign() + ', switch to channel ' + DIGIT_WORDS[ch] + '.';
+  } else {
+    // player-directed — channel differs from currently selected
+    let ch;
+    do { ch = randInt(1, 4); } while (ch === radio.selected);
+    text = csText(radio.callsign) + ', switch to channel ' + DIGIT_WORDS[ch] + '.';
+    radio.calls++;
+    radio.windowOpen = true;
+    radio.windowChannel = ch;
+    radio.windowTimer = after(CONFIG.radio.responseWindowMs, radioWindowExpire);
+  }
+  if (Math.random() < 0.25) text = text.slice(0, -1) + ', over.';   // occasional filler
+  deliverTransmission(text);
+  scheduleNextTransmission();
+}
+function radioWindowExpire() {
+  if (!radio.windowOpen) return;
+  radio.windowOpen = false;
+  radio.missed++;                          // missed call, 0 points
+}
+function tileClick(n) {
+  if (appState !== 'RUNNING' || !radio.active) return;
+  const tile = $('tile' + n);
+  if (radio.windowOpen) {
+    cancelTimer(radio.windowTimer);
+    radio.windowOpen = false;
+    if (n === radio.windowChannel) {
+      radio.correct++;
+      radio.score += CONFIG.radio.pointsCorrect;
+      document.querySelectorAll('.tile.selected').forEach(t => t.classList.remove('selected'));
+      tile.classList.add('selected');      // persistent selected-channel outline
+      radio.selected = n;
+      flash(tile, 'good');
+    } else {
+      radio.wrong++;
+      flash(tile, 'bad');
+    }
+  } else {
+    radio.falseResp++;                     // responded to traffic not addressed to them
+    flash(tile, 'mute');
+  }
+  updateScores();
+}
+
+/* =====================================================================
+   Session orchestration (§6)
+   ===================================================================== */
+function updateScores() {
+  $('scoreMem').textContent = mem.score;
+  $('scoreMath').textContent = math3.score;
+  $('scoreGauge').textContent = gauge.score;
+  $('scoreRadio').textContent = radio.score;
+}
+function updateTimerDisplay(msRemaining) {
+  const sec = Math.max(0, Math.ceil(msRemaining / 1000));
+  const m = Math.floor(sec / 60);
+  const s = String(sec % 60).padStart(2, '0');
+  $('sessionTimer').textContent = m + ':' + s;
+}
+function applyDim() {
+  $('qMemory').classList.toggle('dimmed', !mem.active);
+  $('qMath').classList.toggle('dimmed', !math3.active);
+  $('qGauge').classList.toggle('dimmed', !gauge.active);
+  $('qRadio').classList.toggle('dimmed', !radio.active);
+}
+function resetModules() {
+  Object.assign(mem, { score: 0, shown: 0, correct: 0, phase: 'idle',
+    set: [], probeLetter: '', probeInSet: false, prevProbe: '', probeCount: 0, timeoutId: null });
+  $('memBar').textContent = '';
+  $('memProbe').textContent = '';
+  $('memRow').classList.remove('flash-good', 'flash-bad');
+
+  Object.assign(math3, { score: 0, attempts: 0, correct: 0,
+    a: 0, b: 0, op: '+', answer: 0, T: 0, slots: [0, 0, 0, 0], cursor: 3, timeoutId: null });
+  $('mathOp').textContent = '';
+  $('mathA').textContent = '';
+  $('mathB').textContent = '';
+  $('btnGT').textContent = 'Greater Than —';
+  $('mathAnswer').classList.remove('flash-good', 'flash-bad');
+  renderMathAnswer();
+  unarmDigits();
+
+  Object.assign(gauge, { score: 0, cycles: 0, yellow: 0, green: 0, redEvents: 0,
+    state: 'idle', angle: 90, idleUntil: 0, dir: 1, speed: 0, snapFrom: 90, snapStart: 0 });
+  renderNeedle();
+  if (gaugeRim) gaugeRim.setAttribute('stroke', '#2e2e2e');
+
+  Object.assign(radio, { score: 0, calls: 0, correct: 0, wrong: 0, missed: 0, falseResp: 0,
+    selected: 0, windowOpen: false, windowChannel: 0, windowTimer: null, readoutTimer: null });
+  document.querySelectorAll('.tile').forEach(t =>
+    t.classList.remove('selected', 'flash-good', 'flash-bad', 'flash-mute'));
+  $('radioReadout').classList.add('hidden');
+
+  updateScores();
+  updateTimerDisplay(settings.minutes * 60000);
+}
+
+function startSession() {
+  clearAllTimers();
+  cancelSpeech();
+  const m = MODES[settings.mode];
+  mem.active = m.mem;
+  math3.active = m.math;
+  gauge.active = m.gauge;
+  radio.active = m.radio;
+  resetModules();
+  applyDim();
+  $('menuOverlay').classList.add('hidden');
+  $('resultsOverlay').classList.add('hidden');
+
+  if (radio.active) {
+    // CALLSIGN_REVEAL — shown once, spoken once, never shown again (§1.2)
+    radio.callsign = genCallsign();
+    $('revealCs').textContent = csText(radio.callsign);
+    $('ringNum').textContent = '5';
+    $('ringFg').style.strokeDashoffset = '0';
+    $('revealOverlay').classList.remove('hidden');
+    appState = 'REVEAL';
+    say('Your call sign is ' + csText(radio.callsign));
+    revealDeadline = performance.now() + 5000;
+    revealTick();
+  } else {
+    beginRunning();
+  }
+}
+function revealTick() {
+  if (appState !== 'REVEAL') return;
+  const rem = revealDeadline - performance.now();
+  const C = 238.76;
+  $('ringFg').style.strokeDashoffset = String(C * clamp(1 - rem / 5000, 0, 1));
+  $('ringNum').textContent = String(Math.max(1, Math.ceil(rem / 1000)));
+  if (rem <= 0) beginRunning();
+  else after(50, revealTick);
+}
+function beginRunning() {
+  $('revealOverlay').classList.add('hidden');
+  appState = 'RUNNING';
+  sessionEndTime = performance.now() + settings.minutes * 60000;
+  updateTimerDisplay(settings.minutes * 60000);
+  if (mem.active) memNewRound();
+  if (math3.active) mathNewProblem();
+  if (gauge.active) gaugeEnterIdle(performance.now());
+  if (radio.active) scheduleNextTransmission();
+  lastTick = performance.now();
+  rafId = requestAnimationFrame(tick);
+}
+function tick(now) {
+  if (appState !== 'RUNNING') return;
+  const dt = Math.min(100, now - lastTick);   // clamp dt (tab-switch safety)
+  lastTick = now;
+  const remaining = sessionEndTime - now;
+  updateTimerDisplay(remaining);
+  gaugeTick(now, dt);
+  if (remaining <= 0) { endSession(); return; }
+  rafId = requestAnimationFrame(tick);
+}
+function endSession() {
+  appState = 'ENDED';                          // freeze all input
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  clearAllTimers();                            // no orphaned timers
+  cancelSpeech();                              // cancel all pending speech
+  radio.windowOpen = false;
+  updateTimerDisplay(0);
+  after(500, showResults);
+}
+
+/* =====================================================================
+   Results & history (§1.2 RESULTS)
+   ===================================================================== */
+function pct(n, d) { return d ? Math.round(100 * n / d) + '%' : '—'; }
+function showResults() {
+  const rows = [];
+  if (mem.active) rows.push(['Memory', mem.score,
+    mem.correct + ' / ' + mem.shown + ' probes (' + pct(mem.correct, mem.shown) + ')',
+    'set length ' + CONFIG.memory.setLength]);
+  if (math3.active) rows.push(['Math', math3.score,
+    math3.correct + ' / ' + math3.attempts + ' problems (' + pct(math3.correct, math3.attempts) + ')',
+    'incl. Greater-Than answers']);
+  if (gauge.active) rows.push(['Gauge', gauge.score,
+    gauge.yellow + ' yellow / ' + gauge.cycles + ' drift cycles (' + pct(gauge.yellow, gauge.cycles) + ')',
+    gauge.green + ' green resets, ' + gauge.redEvents + ' red events']);
+  if (radio.active) rows.push(['Radio', radio.score,
+    radio.correct + ' / ' + radio.calls + ' calls (' + pct(radio.correct, radio.calls) + ')',
+    radio.wrong + ' wrong, ' + radio.missed + ' missed, ' + radio.falseResp + ' false responses']);
+
+  const body = $('resBody');
+  body.innerHTML = '';
+  let total = 0;
+  for (const [name, score, acc, det] of rows) {
+    total += score;
+    const tr = document.createElement('tr');
+    const cells = [name, score, acc, det];
+    cells.forEach((c, i) => {
+      const td = document.createElement('td');
+      if (i === 1) td.className = 'num';
+      td.textContent = c;
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  }
+  $('resTotal').textContent = total;
+
+  history.push({ n: history.length + 1, mode: MODES[settings.mode].label, total });
+  const hb = $('histBody');
+  hb.innerHTML = '';
+  for (const h of history) {
+    const tr = document.createElement('tr');
+    [h.n, h.mode, h.total].forEach((c, i) => {
+      const td = document.createElement('td');
+      if (i === 2) td.className = 'num';
+      td.textContent = c;
+      tr.appendChild(td);
+    });
+    hb.appendChild(tr);
+  }
+
+  appState = 'RESULTS';
+  $('resultsOverlay').classList.remove('hidden');
+}
+function goToMenu() {
+  appState = 'MENU';
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  clearAllTimers();
+  cancelSpeech();
+  resetModules();
+  $('resultsOverlay').classList.add('hidden');
+  $('revealOverlay').classList.add('hidden');
+  $('menuOverlay').classList.remove('hidden');
+}
+
+/* =====================================================================
+   Keyboard support (§7) — mouse is primary
+   ===================================================================== */
+document.addEventListener('keydown', (e) => {
+  if (appState !== 'RUNNING') return;         // ignore all game keys outside RUNNING
+  if (e.shiftKey && /^Digit[1-4]$/.test(e.code)) {
+    tileClick(parseInt(e.code.slice(5), 10)); // Shift+1–4 → radio tiles
+    e.preventDefault();
+    return;
+  }
+  if (!e.shiftKey && /^[0-9]$/.test(e.key)) { mathDigit(parseInt(e.key, 10)); return; }
+  const k = e.key.toLowerCase();
+  if (k === 'y') { memAnswer(true); }
+  else if (k === 'n') { memAnswer(false); }
+  else if (k === 'g') { mathGreaterThan(); }
+  else if (e.key === 'Enter') { mathSubmit(); e.preventDefault(); }
+  else if (e.code === 'Space') { gaugeClick(); e.preventDefault(); }
+});
+
+/* =====================================================================
+   Wiring & init
+   ===================================================================== */
+function wireSeg(segId, dataAttr, apply) {
+  const seg = $(segId);
+  seg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-' + dataAttr + ']');
+    if (!btn) return;
+    seg.querySelectorAll('.btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    apply(btn.dataset[dataAttr]);
+  });
+}
+wireSeg('modeSeg', 'mode', v => { settings.mode = v; });
+wireSeg('durSeg', 'min', v => {
+  settings.minutes = parseInt(v, 10);
+  updateTimerDisplay(settings.minutes * 60000);
+});
+
+$('btnStart').addEventListener('click', () => {
+  // this click is the user gesture that unlocks speechSynthesis
+  if (ttsMode === 'tts') pickVoice();
+  startSession();
+});
+$('btnRetry').addEventListener('click', startSession);
+$('btnMenu').addEventListener('click', goToMenu);
+
+$('memYes').addEventListener('click', () => memAnswer(true));
+$('memNo').addEventListener('click', () => memAnswer(false));
+$('btnSubmit').addEventListener('click', mathSubmit);
+$('btnGT').addEventListener('click', mathGreaterThan);
+$('qGauge').addEventListener('click', gaugeClick);   // entire quadrant is the click target
+[1, 2, 3, 4].forEach(n => $('tile' + n).addEventListener('click', (e) => {
+  e.stopPropagation();
+  tileClick(n);
+}));
+
+buildDigitStrip();
+buildGauge();
+renderMathAnswer();
+if (ttsMode === 'text') $('ttsBadge').classList.remove('hidden');
+updateTimerDisplay(settings.minutes * 60000);
+updateScores();
+</script>
+</body>
+</html>

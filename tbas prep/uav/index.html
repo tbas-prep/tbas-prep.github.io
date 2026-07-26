@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UAV Orientation</title>
+
+    <script>
+        async function cacheAssets() {
+            const cache = await caches.open('media-cache-v1');
+            const urlsToCache = ['/style.css', '/script.js', '/images/n.jpg', '/images/ne.jpg', '/images/e.jpg', '/images/se.jpg', '/images/s.jpg', '/images/sw.jpg', '/images/w.jpg', '/images/nw.jpg', '/audio/n.mp3', '/audio/e.mp3', '/audio/s.mp3', '/audio/w.mp3', '/audio/target.mp3'];
+
+            await cache.addAll(urlsToCache);
+            console.log('Assets cached successfully!');
+        }
+
+        cacheAssets();
+
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h1>Directional Orientation Practice</h1>
+    <button id="help" onclick="helpBtnClicked()">Need help?</button>
+    <h3 id="rightOrWrong">Answer for results</h3>
+    <h3>Correct Answers in a row: <span id="consecutive">0</span></h3>
+    <button id="next" onclick="changeImage()">Play</button>
+
+    <div class="flex-container">
+
+        <div id="nonCornerBox" class="box" style="position:relative;width:350px;height:350px;background:#3a3;">
+            <button onclick="ans('forward')"
+                style="box-sizing:border-box;position:absolute;top:0;left:50%;transform:translateX(-50%);width:110px;height:110px;background:#c8c8c8;border:1px solid #888;"></button>
+            <button onclick="ans('left')"
+                style="box-sizing:border-box;position:absolute;top:50%;transform:translateY(-50%);left:0;width:110px;height:110px;background:#c8c8c8;border:1px solid #888;"></button>
+            <button onclick="ans('right')"
+                style="box-sizing:border-box;position:absolute;top:50%;transform:translateY(-50%);right:0;width:110px;height:110px;background:#c8c8c8;border:1px solid #888;"></button>
+            <button onclick="ans('aft')"
+                style="box-sizing:border-box;position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:110px;height:110px;background:#c8c8c8;border:1px solid #888;"></button>
+        </div>
+
+        <div hidden id="cornerBox" class="box" style="position:relative;width:350px;height:350px;background:#3a3;">
+            <button onclick="ans('forward-left')"
+                style="position:absolute;top:0;left:0;width:110px;height:110px;background:#c8c8c8;border:1px solid #888;"></button>
+            <button onclick="ans('forward-right')"
+                style="position:absolute;top:0;right:0;width:110px;height:110px;background:#c8c8c8;border:1px solid #888;"></button>
+            <button onclick="ans('aft-left')"
+                style="position:absolute;bottom:0;left:0;width:110px;height:110px;background:#c8c8c8;border:1px solid #888;"></button>
+            <button onclick="ans('aft-right')"
+                style="position:absolute;bottom:0;right:0;width:110px;height:110px;background:#c8c8c8;border:1px solid #888;"></button>
+        </div>
+        <img id="map" src="images/n.jpg" width="400">
+
+    </div>
+
+
+    <script src="script.js"></script>
+</body>
+
+</html>
